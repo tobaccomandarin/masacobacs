@@ -279,10 +279,6 @@ def build():
             continue
         if b % 1 == 0.5:
             drums.add(HO if b >= 16 and b < 24 else HC, sec(b), 0.22, 0.35)
-    for b16 in range(16 * 4, 24 * 4):
-        b = b16 / 4
-        if b % 0.5 != 0:
-            drums.add(HC, sec(b), 0.12, -0.4)
 
     # ---------------------------------------------------------------- bass
     for b8 in range(4 * 2, 32 * 2):
@@ -292,11 +288,11 @@ def build():
             bass.add(bass_note(root + 12, sec(0.45), 700), sec(b), 0.55)
         elif 12 <= b < 15.75:
             bass.add(bass_note(root + 12 + (12 if b8 % 2 else 0), sec(0.45), 500 + 120 * (b - 12)), sec(b), 0.5)
-    for b16 in range(16 * 4, 24 * 4):
-        b = b16 / 4
-        if b16 % 4 != 0:
+    for b8 in range(16 * 2, 24 * 2):
+        b = b8 / 2
+        if b8 % 2:
             root = ROOT[chord_at(b)]
-            bass.add(bass_note(root + 12 + (12 if b16 % 4 == 2 else 0), sec(0.22), 1300), sec(b), 0.5)
+            bass.add(bass_note(root + 12, sec(0.45), 1100), sec(b), 0.55)
     bass.add(bass_note(ROOT["Fm"] + 12, sec(3.0), 800), sec(28), 0.7)
 
     # ---------------------------------------------------------------- harmony
@@ -346,24 +342,21 @@ def build():
     sfx.add(impact(0.55), sec(4.0), 0.6)
 
     # bar 2: kinetic type
-    f = scenes.font("black")
     for li, (text, start) in enumerate(zip(scenes.TYPE_LINES, scenes.TYPE_STARTS)):
         sfx.add(lp(noise(0.08), 900) * np.exp(-tt(0.08) * 50), sec(start), 0.5)
         for gi, ch in enumerate(text):
             if ch != " ":
                 sfx.add(tick(2600 + 180 * gi, 0.01), sec(start + gi * scenes.LETTER_STAGGER), 0.12,
                         -0.6 + 1.2 * gi / max(1, len(text) - 1))
-    sfx.add(pop(900, 2200), sec(6.55), 0.3, 0.6)
+    sfx.add(pop(900, 2200), sec(scenes.DIAMOND_T), 0.3, 0.6)
     for wi in range(4):
-        sfx.add(tick(1800, 0.015), sec(7.0 + wi * 0.1), 0.1)
+        sfx.add(tick(1800, 0.015), sec(scenes.PAYOFF_T + wi * 0.12), 0.1)
     sfx.add(whoosh(sec(0.55), 150, 5000, curve=1.8), sec(7.45), 0.5)
     sfx.add(lp(kick(), 400), sec(8.0), 0.4)
 
     # bar 3: graph editor
     for i in range(9):
         sfx.add(tick(4200 - i * 180, 0.008), sec(8.0 + i * 0.03), 0.09, -0.8 + 0.2 * i)
-    for tch in scenes.typed_char_times(scenes.LINEAR_TXT, scenes.LINEAR_T):
-        sfx.add(key_click(), sec(tch), 0.22, rng.uniform(-0.3, 0.3))
     for tch in scenes.typed_char_times(scenes.BEZIER_TXT, scenes.BEZIER_T):
         sfx.add(key_click(), sec(tch), 0.22, rng.uniform(-0.3, 0.3))
     for b, a0, a1 in scenes.LIN_MOVES:
@@ -377,7 +370,7 @@ def build():
     sfx.add(impact(0.45), sec(12.0), 0.5)
 
     # bar 4: stagger grid ripples
-    for k, b in enumerate((12.0, 13.0, 14.0, 15.0)):
+    for k, b in enumerate(scenes.GRID_BEATS):
         for i in range(7):
             sfx.add(tick(1500 * 2 ** ((k * 2 + i) / 12), 0.03), sec(b + i * 0.05), 0.07,
                     math.sin(i * 1.7) * 0.7)
@@ -386,10 +379,7 @@ def build():
     # bar 5: the drop
     sfx.add(impact(1.0), sec(16.0), 0.9)
     send.add(impact(1.0), sec(16.0), 0.25)
-    for b in (17, 18, 19):
-        sfx.add(lp(noise(0.2), 1500) * np.exp(-tt(0.2) * 22), sec(b), 0.4)
-    for b in scenes.DROP_BEATS:
-        sfx.add(glitch(), sec(b + 0.72), 0.3, rng.uniform(-0.5, 0.5))
+    sfx.add(lp(noise(0.3), 1500) * np.exp(-tt(0.3) * 14), sec(18), 0.45)
     for k in range(6):
         sfx.add(whoosh(0.18, 3000, 500, curve=0.7, shape="down"), sec(19.72 + k * 0.03), 0.13,
                 1 if k % 2 == 0 else -1)
@@ -397,8 +387,7 @@ def build():
     # bar 6: parallax
     sfx.add(pop(350, 900, 0.12), sec(20.6), 0.35)
     sfx.add(bell(mtof(84), 1.0, 1.2), sec(20.75), 0.07)
-    for b in (21, 22, 23):
-        sfx.add(whoosh(0.35, 800, 2500, shape="bell"), sec(b), 0.12, 0.6 if b % 2 else -0.6)
+    sfx.add(whoosh(0.6, 800, 2500, shape="bell"), sec(22), 0.14, 0.4)
     sfx.add(whoosh(sec(0.6), 200, 12000, curve=3.0), sec(23.4), 0.6)
     sfx.add(glide(200, 1600, sec(0.6), decay=0), sec(23.4), 0.08)
 
@@ -426,8 +415,8 @@ def build():
         sfx.add(tick(1500 + 120 * i, 0.012), sec(28.12 + i * 0.055), 0.1)
     for i, m in enumerate([77, 80, 84, 87, 89, 92, 96]):
         c = bell(mtof(m), 1.2, 0.8)
-        sfx.add(c, sec(29.45 + i * 0.07), 0.06, -0.5 + i / 6)
-        send.add(c, sec(29.45 + i * 0.07), 0.05)
+        sfx.add(c, sec(scenes.JP_T + i * 0.07), 0.06, -0.5 + i / 6)
+        send.add(c, sec(scenes.JP_T + i * 0.07), 0.05)
     sfx.add(glide(900, 160, sec(0.65), decay=2.0), sec(30.9), 0.2)
     sfx.add(whoosh(sec(0.65), 6000, 300, curve=0.8, shape="down"), sec(30.9), 0.25)
     ding = bell(mtof(84), 1.4, 1.5)

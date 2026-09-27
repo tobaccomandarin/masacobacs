@@ -17,7 +17,7 @@ import math
 import cairo
 
 from lib import (BEAT, BLUE, CORAL, GRAPHITE, H, INK, LIME, PAPER, W, clamp,
-                 cubic_bezier, diamond, eio_cubic, eio_expo, ei_back, ei_cubic,
+                 cubic_bezier, diamond, eio_cubic, eio_expo, ei_back,
                  ei_expo, eo_back, eo_cubic, eo_expo, font, hash01, lerp, mix,
                  prog, rounded_rect, setc, spark, spring, star4, with_alpha)
 
@@ -161,8 +161,10 @@ def scene_bounce(ctx, bt):
 
 # ======================================================================= bar 2
 TYPE_LINES = ["I THINK", "IN KEY", "FRAMES"]
-TYPE_STARTS = [4.0, 5.0, 6.0]
-LETTER_STAGGER = 0.045
+TYPE_STARTS = [4.0, 4.6, 5.2]
+LETTER_STAGGER = 0.035
+DIAMOND_T = 5.9
+PAYOFF_T = 6.2
 
 
 def _type_layout():
@@ -193,7 +195,7 @@ def scene_type(ctx, bt):
 
     panel = eio_expo(prog(bt, 7.45, 8.0))
     push = -panel * 520
-    bump = 1 + 0.018 * impulse(bt, [4, 5, 6, 7], 9)
+    bump = 1 + 0.012 * impulse(bt, [4], 9)
 
     ctx.save()
     ctx.translate(540, 960 + push)
@@ -211,7 +213,7 @@ def scene_type(ctx, bt):
         for gi, (ch, g, gx, adv) in enumerate(glyphs):
             if ch == " ":
                 continue
-            p = eo_expo(prog(bt, start + gi * LETTER_STAGGER, start + gi * LETTER_STAGGER + 0.6))
+            p = eo_expo(prog(bt, start + gi * LETTER_STAGGER, start + gi * LETTER_STAGGER + 0.85))
             dy = (1 - p) * cap * 1.2
             ctx.save()
             ctx.translate(margin + gx, base + dy)
@@ -228,7 +230,7 @@ def scene_type(ctx, bt):
                 ctx.fill()
         ctx.restore()
         if li == 2:
-            p = eo_back(prog(bt, 6.55, 6.9), 3.2)
+            p = eo_back(prog(bt, DIAMOND_T, DIAMOND_T + 0.5), 2.2)
             if p > 0:
                 dx = margin + width + cap * 0.36
                 ctx.save()
@@ -245,7 +247,7 @@ def scene_type(ctx, bt):
     words = "every frame, on purpose.".split(" ")
     x = margin
     for wi, wd in enumerate(words):
-        p = eo_expo(prog(bt, 7.0 + wi * 0.1, 7.6 + wi * 0.1))
+        p = eo_expo(prog(bt, PAYOFF_T + wi * 0.12, PAYOFF_T + 0.9 + wi * 0.12))
         w = it.width(wd + " ", 76)
         if p > 0:
             ctx.save()
@@ -272,8 +274,6 @@ def scene_type(ctx, bt):
 # ======================================================================= bar 3
 GX0, GX1, GY0, GY1 = 160.0, 920.0, 610.0, 1370.0
 TRACK1, TRACK2 = 1470.0, 1550.0
-LINEAR_TXT = "transition: linear;"
-LINEAR_T = (8.4, 9.1)
 BEZIER_TXT = "cubic-bezier(0.16, 1, 0.3, 1)"
 BEZIER_T = (10.35, 11.05)
 LIN_MOVES = [(9.0, 0, 1), (10.0, 1, 0), (11.0, 0, 1)]
@@ -456,9 +456,6 @@ def scene_ease(ctx, bt):
         ball(TRACK2, EASE_MOVES, ease_fn, LIME, 9.85)
 
         # headings
-        if bt < 10:
-            _typed(ctx, LINEAR_TXT, LINEAR_T, bt, 540, 470, 34,
-                   with_alpha(PAPER, 0.6 * a), align="center")
         if bt >= 10:
             it = font("italic")
             glyphs, w = it.layout("Ease is emotion.", 118)
@@ -488,6 +485,8 @@ def scene_ease(ctx, bt):
 
 # ======================================================================= bar 4
 COLS, ROWS, CELL = 6, 8, 160
+GRID_BEATS = (12.0, 13.2, 14.4)
+GRID_STATES = (1, 2, 4)
 GRID_X0 = (W - COLS * CELL) / 2
 GRID_Y0 = 960 - ROWS * CELL / 2
 
@@ -514,21 +513,21 @@ def scene_grid(ctx, bt):
         for i in range(COLS):
             d = math.hypot(i - 2.5, j - 3.5)
             size, rnd, rot, col = _grid_state(0, i, j)
-            for k, b in enumerate((12.0, 13.0, 14.0, 15.0)):
+            for k, b in enumerate(GRID_BEATS):
                 t0 = b + d * 0.065
-                p = prog(bt, t0, t0 + 0.5)
+                p = prog(bt, t0, t0 + 0.8)
                 if p <= 0:
                     break
-                e = eo_back(p, 2.0)
-                s2, r2, rot2, c2 = _grid_state(k + 1, i, j)
+                e = eo_back(p, 1.3)
+                s2, r2, rot2, c2 = _grid_state(GRID_STATES[k], i, j)
                 size = lerp(size, s2, e)
                 rnd = lerp(rnd, r2, clamp(e))
                 rot = lerp(rot, rot2, e)
                 col = mix(col, c2, clamp(p * 1.6))
             cx = GRID_X0 + CELL / 2 + CELL * i
             cy = GRID_Y0 + CELL / 2 + CELL * j
-            cy += 10 * math.sin(bt * math.pi + d * 0.9)
-            size *= 1 + 0.07 * impulse(bt, [12, 13, 14, 15], 9)
+            cy += 6 * math.sin(bt * math.pi * 0.5 + d * 0.9)
+            size *= 1 + 0.04 * impulse(bt, [12], 9)
             # implode toward the centre: anticipation first, then suck in
             ip = prog(bt, implode_t + (4.3 - d) * 0.03, 15.97)
             if ip > 0:
@@ -548,22 +547,22 @@ def scene_grid(ctx, bt):
 
 
 # ======================================================================= bar 5
-DROP_WORDS = ["EVERY", "FRAME", "ON", "BEAT."]
-DROP_BEATS = [16.0, 17.0, 18.0, 19.0]
+DROP_CARDS = [["EVERY", "FRAME"], ["ON", "BEAT."]]
+DROP_BEATS = [16.0, 18.0]
 
 
 def _tunnel(ctx, bt):
     f = 560.0
     spacing = 240.0
     n_rings = 18
-    travel = 1900 * (bt - 16) + sum(700 * eo_expo(prog(bt, b, b + 0.55)) for b in DROP_BEATS)
+    travel = 1000 * (bt - 16) + sum(900 * eo_expo(prog(bt, b, b + 1.2)) for b in DROP_BEATS)
     total = spacing * n_rings
     for k in range(n_rings):
         z = (k * spacing - travel) % total + 90
         depth_a = clamp(1 - z / total) * clamp((z - 90) / 160)
         if depth_a <= 0.01:
             continue
-        rot = z * 0.0012 + (bt - 16) * 0.8
+        rot = z * 0.0012 + (bt - 16) * 0.35
         col = CORAL if k % 4 == 0 else PAPER
         rr = 9.5 * f / z
         R = 520 * f / z
@@ -577,7 +576,7 @@ def _tunnel(ctx, bt):
 
 def _speedlines(ctx, bt):
     for b in DROP_BEATS:
-        p = prog(bt, b, b + 0.45)
+        p = prog(bt, b, b + 0.8)
         if not 0 < p < 1:
             continue
         for i in range(40):
@@ -591,54 +590,41 @@ def _speedlines(ctx, bt):
         ctx.stroke()
 
 
-def _drop_word(ctx, bt, idx, scale=1.0, alpha=1.0, outline_only=False):
+def _drop_card(ctx, bt, idx):
     f = font("black")
-    word = DROP_WORDS[idx]
-    size = min(420.0, 950.0 / f.width(word, 100, tracking=-30) * 100)
+    lines = DROP_CARDS[idx]
     b = DROP_BEATS[idx]
-    p = eo_expo(prog(bt, b, b + 0.35))
-    s = (1.55 - 0.55 * p) * scale
-    rot = (-0.07 if idx % 2 == 0 else 0.07) * (1 - p)
-    cap = f.cap_px(size)
-
-    def shape():
-        ctx.save()
-        ctx.translate(540, 960)
-        ctx.rotate(rot)
-        ctx.scale(s, s)
-        f.text(ctx, word, 0, cap / 2, size, tracking=-30, align="center")
-        ctx.restore()
-
-    styles = [(PAPER, False), (LIME, True), (LIME, False), (PAPER, False)]
-    col, stroke = styles[idx]
-    stroke = stroke or outline_only
-    # glitch slices on the last 16th before the next word
-    gp = prog(bt, b + 0.72, b + 0.86)
-    bands = [(0, H, 0)]
-    if 0 < gp < 1:
-        bands = []
-        y = 0
-        for k in range(9):
-            hgt = 60 + 200 * hash01(idx, k)
-            off = (hash01(idx, k, 3) - 0.5) * 120 * math.sin(gp * math.pi)
-            bands.append((520 + y, hgt, off))
-            y += hgt
-    for y0, hgt, off in bands:
-        ctx.save()
-        if len(bands) > 1:
-            ctx.rectangle(-200, y0, W + 400, hgt)
+    p = eo_expo(prog(bt, b, b + 0.7))
+    s = 1.3 - 0.3 * p
+    styles = [[(PAPER, False), (LIME, True)], [(LIME, False), (PAPER, False)]][idx]
+    sizes = [min(330.0, 930.0 / f.width(w, 100, tracking=-30) * 100) for w in lines]
+    caps = [f.cap_px(z) for z in sizes]
+    gap = 50
+    total = sum(caps) + gap
+    y = 960 - total / 2
+    ctx.save()
+    ctx.translate(540, 960)
+    ctx.scale(s, s)
+    ctx.translate(-540, -960)
+    for li, (word, size, cap) in enumerate(zip(lines, sizes, caps)):
+        y += cap
+        lp_ = eo_expo(prog(bt, b + li * 0.25, b + li * 0.25 + 0.8))
+        if lp_ > 0:
+            ctx.save()
+            ctx.rectangle(-200, y - cap - 12, W + 400, cap + 24)
             ctx.clip()
-        ctx.translate(off, 0)
-        shape()
-        if stroke:
-            setc(ctx, col, alpha)
-            ctx.set_line_width(7 / s)
-            ctx.set_line_join(cairo.LINE_JOIN_ROUND)
-            ctx.stroke()
-        else:
-            setc(ctx, col, alpha)
-            ctx.fill()
-        ctx.restore()
+            f.text(ctx, word, 540, y + (1 - lp_) * cap * 1.1, size, tracking=-30, align="center")
+            col, stroke = styles[li]
+            setc(ctx, col)
+            if stroke:
+                ctx.set_line_width(6)
+                ctx.set_line_join(cairo.LINE_JOIN_ROUND)
+                ctx.stroke()
+            else:
+                ctx.fill()
+            ctx.restore()
+        y += gap
+    ctx.restore()
 
 
 def scene_drop(ctx, bt):
@@ -646,14 +632,10 @@ def scene_drop(ctx, bt):
     _tunnel(ctx, bt)
     _speedlines(ctx, bt)
     idx = max(i for i, b in enumerate(DROP_BEATS) if bt >= b)
-    # echo of the word on the off-beat
-    ep = prog(bt, DROP_BEATS[idx] + 0.5, DROP_BEATS[idx] + 0.95)
-    if 0 < ep < 1:
-        _drop_word(ctx, bt, idx, scale=1 + 0.25 * eo_expo(ep), alpha=0.35 * (1 - ep), outline_only=True)
-    _drop_word(ctx, bt, idx)
-    fl = 1 - prog(bt, 16.0, 16.32)
+    _drop_card(ctx, bt, idx)
+    fl = 1 - prog(bt, 16.0, 16.45)
     if fl > 0:
-        setc(ctx, LIME, fl)
+        setc(ctx, LIME, fl * 0.85)
         ctx.paint()
 
 
@@ -661,6 +643,7 @@ def scene_drop(ctx, bt):
 ROW_DEPTH = ["far", "near", "mid", "far", "near", "mid", "far", "mid", "near", "far", "mid", "near", "far"]
 DEPTH = {"near": (200.0, 1.0), "mid": (130.0, 0.8), "far": (78.0, 0.55)}
 MARQUEE = ["MOTION", "*", "DESIGN", "*"]
+MARQUEE_BEATS = (20, 22)
 BADGE_TEXT = "CLAUDE • MOTION DESIGN • MADE IN CODE • "
 
 
@@ -703,7 +686,7 @@ def _marquee_row(ctx, y, depth, direction, travel):
 def _badge(ctx, bt, cx, cy, scale, spark_alpha=1.0):
     if scale <= 0:
         return
-    rot = (bt - 20) * 0.55 + 0.6 * sum(eo_expo(prog(bt, b, b + 0.5)) for b in (21, 22, 23))
+    rot = (bt - 20) * 0.3 + 0.5 * eo_expo(prog(bt, 22, 23))
     ctx.save()
     ctx.translate(cx, cy)
     ctx.scale(scale, scale)
@@ -746,8 +729,7 @@ def scene_marquee(ctx, bt):
     ctx.scale(zoom, zoom)
     ctx.translate(-540, -960)
 
-    travel = (bt - 20) * 0.28 + sum(0.9 * eo_expo(prog(bt, b, b + 0.6)) for b in (20, 21, 22, 23)) \
-        + sum(0.3 * eo_expo(prog(bt, b + 0.5, b + 0.9)) for b in (20, 21, 22, 23))
+    travel = (bt - 20) * 0.16 + sum(0.55 * eo_expo(prog(bt, b, b + 1.2)) for b in MARQUEE_BEATS)
     ctx.save()
     ctx.translate(540, 960)
     ctx.rotate(-0.21)
@@ -765,6 +747,7 @@ def scene_marquee(ctx, bt):
 
 # ======================================================================= bars 7-8
 C = (540.0, 760.0)
+JP_T = 29.0
 CIRCLES = [110, 200, 290, 380]
 SPARK_R = 290.0
 END_DOT = DOT_START
@@ -923,8 +906,8 @@ def scene_finale(ctx, bt):
         setc(ctx, INK, prog(bt, 28.55, 28.9))
         ctx.fill()
         _reveal_line(ctx, font("jp"), "動きで、語る。", 540, 1478, 70,
-                     (bt, 29.45), 0.07, CORAL, 80, tracking=60)
-        cp = prog(bt, 30.0, 30.4)
+                     (bt, JP_T), 0.07, CORAL, 80, tracking=60)
+        cp = prog(bt, 29.5, 29.9)
         if cp > 0:
             mono.text(ctx, "picture + sound: 100% generated in code", 540, 1566, 21, align="center")
             setc(ctx, GRAPHITE, cp)
@@ -1045,8 +1028,8 @@ def hud(ctx, t, bt, fps):
 
 
 # ======================================================================= camera
-SHAKES = [(1, 5), (2, 5), (3, 5), (4, 12), (8, 9), (12, 10), (16, 42), (17, 20), (18, 20),
-          (19, 24), (20, 12), (24, 8), (28, 30)]
+SHAKES = [(1, 3), (2, 3), (3, 3), (4, 6), (8, 4), (12, 5), (16, 22), (18, 10),
+          (20, 6), (28, 14)]
 
 
 def camera(bt):
@@ -1065,7 +1048,7 @@ def aberration(bt):
     for b, amp in SHAKES:
         dt = (bt - b) * BEAT
         if 0 <= dt < 0.6:
-            v += amp * 0.32 * math.exp(-dt * 10)
+            v += amp * 0.22 * math.exp(-dt * 10)
     return v
 
 
