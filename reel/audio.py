@@ -412,16 +412,20 @@ def build():
     sfx.add(shimmer, sec(28.0), 0.18)
     send.add(shimmer, sec(28.0), 0.25)
     for i in range(6):
-        sfx.add(tick(1500 + 120 * i, 0.012), sec(28.12 + i * 0.055), 0.1)
+        sfx.add(tick(1500 + 120 * i, 0.012), sec(28.05 + i * 0.045), 0.1)
     for i, m in enumerate([77, 80, 84, 87, 89, 92, 96]):
         c = bell(mtof(m), 1.2, 0.8)
         sfx.add(c, sec(scenes.JP_T + i * 0.07), 0.06, -0.5 + i / 6)
         send.add(c, sec(scenes.JP_T + i * 0.07), 0.05)
-    sfx.add(glide(900, 160, sec(0.65), decay=2.0), sec(30.9), 0.2)
-    sfx.add(whoosh(sec(0.65), 6000, 300, curve=0.8, shape="down"), sec(30.9), 0.25)
+    # outro: each retracting ray replays its build note, now descending
+    for i, t0 in enumerate(scenes.retract_times()):
+        p = pluck(penta[i], 0.45, 3500)
+        sfx.add(p, sec(t0), 0.12, math.sin(i * TAU12))
+        send.add(p, sec(t0), 0.09)
+    sfx.add(whoosh(sec(0.65), 3000, 250, curve=0.8, shape="bell"), sec(scenes.DARK_T[0]), 0.16)
     ding = bell(mtof(84), 1.4, 1.5)
-    sfx.add(ding, sec(31.5), 0.22)
-    send.add(ding, sec(31.5), 0.2)
+    sfx.add(ding, sec(scenes.DOT_T[1]), 0.22)
+    send.add(ding, sec(scenes.DOT_T[1]), 0.2)
 
     # ---------------------------------------------------------------- sidechain
     t = np.arange(N) / SR

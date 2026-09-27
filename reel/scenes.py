@@ -17,7 +17,7 @@ import math
 import cairo
 
 from lib import (BEAT, BLUE, CORAL, GRAPHITE, H, INK, LIME, PAPER, W, clamp,
-                 cubic_bezier, diamond, eio_cubic, eio_expo, ei_back,
+                 cubic_bezier, diamond, eio_cubic, eio_expo, ei_back, ei_cubic,
                  ei_expo, eo_back, eo_cubic, eo_expo, font, hash01, lerp, mix,
                  prog, rounded_rect, setc, spark, spring, star4, with_alpha)
 
@@ -747,7 +747,19 @@ def scene_marquee(ctx, bt):
 
 # ======================================================================= bars 7-8
 C = (540.0, 760.0)
-JP_T = 29.0
+JP_T = 28.35
+# outro: hold the lock-up, then the spark retracts ray by ray into the opening dot
+OUTRO_FADE = (30.5, 30.95)
+RETRACT_T0 = 30.8
+RETRACT_STAGGER = 0.045
+RETRACT_LEN = 0.4
+DARK_T = (30.9, 31.65)
+DOT_T = (31.3, 31.72)
+
+
+def retract_times():
+    """Start beat of each ray's retraction (reverse of the build order)."""
+    return [RETRACT_T0 + (11 - i) * RETRACT_STAGGER for i in range(12)]
 CIRCLES = [110, 200, 290, 380]
 SPARK_R = 290.0
 END_DOT = DOT_START
@@ -843,7 +855,9 @@ def _reveal_line(ctx, fnt, text, cx, base, size, t0, stagger, col, clip_h, track
 def scene_finale(ctx, bt):
     bg(ctx, PAPER)
     cx, cy = C
-    construct_a = 1 - 0.8 * prog(bt, 27.6, 28.3)
+    fade = 1 - eio_cubic(prog(bt, *OUTRO_FADE))
+    drop = 24 * eio_cubic(prog(bt, *OUTRO_FADE))
+    construct_a = (1 - 0.8 * prog(bt, 27.6, 28.3)) * fade
     _construction(ctx, bt, construct_a)
 
     # "built from first principles." caption during construction
@@ -875,15 +889,41 @@ def scene_finale(ctx, bt):
             scale = 0.6 + 0.5 * math.exp(-dt28 * 9) * math.cos(dt28 * 19)
             rot = -0.22 + (0.22 + TAU / 12) * eo_expo(prog(bt, 28.0, 28.9)) + max(0, bt - 28.9) * 0.06
             scale *= 1 + 0.04 * impulse(bt, [29, 30], 10)
+            # anticipation: a small breath outward before collapsing
+            scale *= 1 + 0.07 * math.sin(math.pi * prog(bt, 30.5, 31.05))
+            rot -= 0.6 * eio_cubic(prog(bt, RETRACT_T0, 31.7))
+        starts = retract_times()
 
         def grow(i):
-            return eo_back(prog(bt, 26.0 + i * 0.065, 26.5 + i * 0.065), 1.8)
+            g = eo_back(prog(bt, 26.0 + i * 0.065, 26.5 + i * 0.065), 1.8)
+            return g * (1 - ei_cubic(prog(bt, starts[i], starts[i] + RETRACT_LEN)))
 
-        spark(ctx, cx, cy, SPARK_R * scale, grow=grow, rot=rot)
+        # the whole mark glides onto the opening dot's position as it collapses
+        mv = eio_cubic(prog(bt, RETRACT_T0, 31.55))
+        sx, sy = lerp(cx, END_DOT[0], mv), lerp(cy, END_DOT[1], mv)
+
+        # darkness spreads out from under the mark
+        dk = eio_cubic(prog(bt, *DARK_T))
+        if dk > 0:
+            ctx.arc(sx, sy, 1400 * dk, 0, TAU)
+            setc(ctx, INK)
+            ctx.fill()
+
+        spark(ctx, sx, sy, SPARK_R * scale, grow=grow, rot=rot)
         setc(ctx, CORAL)
         ctx.fill()
 
-    if bt >= 28:
+        # the core becomes the white dot the reel opens with
+        dp = eio_cubic(prog(bt, *DOT_T))
+        if bt >= RETRACT_T0:
+            core = SPARK_R * scale * 0.16
+            ctx.arc(sx, sy, lerp(core, DOT_R, dp), 0, TAU)
+            setc(ctx, mix(CORAL, PAPER, dp))
+            ctx.fill()
+
+    if bt >= 28 and fade > 0:
+        ctx.save()
+        ctx.translate(0, drop)
         # shockwave ring
         p = prog(bt, 28.0, 28.9)
         if p < 1:
@@ -892,48 +932,27 @@ def scene_finale(ctx, bt):
             ctx.set_line_width(6 * (1 - p) + 1)
             ctx.stroke()
         serif = font("serif")
-        _reveal_line(ctx, serif, "Claude", 540, 1215, 300, (bt, 28.12), 0.055, INK, 230)
+        _reveal_line(ctx, serif, "Claude", 540, 1215, 300, (bt, 28.05), 0.045, with_alpha(INK, fade), 230)
         # rule
-        rp = eo_expo(prog(bt, 28.9, 29.5))
+        rp = eo_expo(prog(bt, 28.5, 29.1))
         if rp > 0:
-            setc(ctx, INK, 0.8)
+            setc(ctx, INK, 0.8 * fade)
             ctx.rectangle(540 - 170 * rp, 1276, 340 * rp, 2)
             ctx.fill()
         mono = font("mono")
-        tp = eo_expo(prog(bt, 28.55, 29.7))
+        tp = eo_expo(prog(bt, 28.3, 29.3))
         track = lerp(900, 330, tp)
         mono.text(ctx, "MOTION DESIGNER", 540, 1352, 38, tracking=track, align="center")
-        setc(ctx, INK, prog(bt, 28.55, 28.9))
+        setc(ctx, INK, prog(bt, 28.3, 28.65) * fade)
         ctx.fill()
         _reveal_line(ctx, font("jp"), "動きで、語る。", 540, 1478, 70,
-                     (bt, JP_T), 0.07, CORAL, 80, tracking=60)
-        cp = prog(bt, 29.5, 29.9)
+                     (bt, JP_T), 0.05, with_alpha(CORAL, fade), 80, tracking=60)
+        cp = prog(bt, 28.9, 29.3)
         if cp > 0:
             mono.text(ctx, "picture + sound: 100% generated in code", 540, 1566, 21, align="center")
-            setc(ctx, GRAPHITE, cp)
+            setc(ctx, GRAPHITE, cp * fade)
             ctx.fill()
-
-
-def iris(ctx, bt):
-    """Close back down to the opening dot so the reel loops seamlessly."""
-    p = eio_expo(prog(bt, 30.9, 31.55))
-    if p <= 0:
-        return
-    x, y = END_DOT
-    r = lerp(1500, DOT_R, p)
-    ctx.save()
-    ctx.rectangle(-200, -200, W + 400, H + 400)
-    ctx.new_sub_path()
-    ctx.arc_negative(x, y, r, TAU, 0)
-    setc(ctx, INK)
-    ctx.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
-    ctx.fill()
-    ctx.restore()
-    solid = prog(bt, 31.2, 31.5)
-    if solid > 0:
-        ctx.arc(x, y, r, 0, TAU)
-        setc(ctx, PAPER, solid)
-        ctx.fill()
+        ctx.restore()
 
 
 # ======================================================================= HUD
@@ -944,7 +963,7 @@ GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/#_+"
 
 
 def hud(ctx, t, bt, fps):
-    a = prog(bt, 0.45, 1.1) * (1 - prog(bt, 30.55, 31.1))
+    a = prog(bt, 0.45, 1.1) * (1 - prog(bt, 30.45, 30.9))
     if a <= 0:
         return
     bar = min(7, int(bt // 4))
@@ -1078,7 +1097,6 @@ def draw(ctx, t, fps):
             scene_marquee(ctx, bt)
     else:
         scene_finale(ctx, bt)
-        iris(ctx, bt)
     ctx.restore()
     hud(ctx, t, bt, fps)
 
